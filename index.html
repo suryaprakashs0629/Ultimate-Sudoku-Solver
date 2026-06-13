@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ultimate Sudoku Solver</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Syne:wght@700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">
+      <span></span><span></span><span></span>
+      <span></span><span></span><span></span>
+      <span></span><span></span><span></span>
+    </div>
+    <div class="logo-text">
+      <h1>Ultimate Sudoku Solver</h1>
+      <p>Backtracking · Recursion · 2D Arrays</p>
+    </div>
+  </div>
+  <div class="hdr-r">
+    <div class="timer-badge" id="timer">00:00</div>
+    <div id="theme-icon" style="font-size:1rem;cursor:pointer;user-select:none;" onclick="toggleTheme()">🌙</div>
+    <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle theme"></button>
+  </div>
+</header>
+
+<main>
+  <!-- LEFT CONTROLS -->
+  <aside class="panel">
+    <div class="ptitle">⚙ Configuration</div>
+
+    <div class="cgroup">
+      <label class="clabel">Grid Type</label>
+      <select id="grid-type" onchange="changeGridType(+this.value)">
+        <option value="4">4×4 — Subgrid 2×2</option>
+        <option value="6">6×6 — Subgrid 2×3</option>
+        <option value="8">8×8 — Subgrid 2×4</option>
+        <option value="9" selected>9×9 — Subgrid 3×3 (Classic)</option>
+        <option value="12">12×12 — Subgrid 3×4</option>
+        <option value="16">16×16 — Subgrid 4×4</option>
+        <option value="25">25×25 — Subgrid 5×5</option>
+      </select>
+    </div>
+
+    <div class="cgroup">
+      <label class="clabel">Difficulty</label>
+      <select id="difficulty">
+        <option value="easy">Easy</option>
+        <option value="medium" selected>Medium</option>
+        <option value="hard">Hard</option>
+      </select>
+    </div>
+
+    <div class="divider"></div>
+    <div class="ptitle">🎮 Actions</div>
+
+    <div class="bgroup">
+      <button class="btn primary full" id="btn-solve" onclick="handleSolve()">⚡ Solve</button>
+      <button class="btn full" id="btn-viz" onclick="handleVisualize()">🎬 Visualize</button>
+      <button class="btn success-btn full" id="btn-gen" onclick="handleGenerate()">🎲 Generate Puzzle</button>
+      <button class="btn" onclick="handleValidate()">✔ Validate</button>
+      <button class="btn" onclick="handleUndo()">↩ Undo</button>
+      <button class="btn" onclick="handleReset()">🔄 Reset</button>
+      <button class="btn danger" onclick="handleClear()">🗑 Clear</button>
+    </div>
+
+    <div class="divider"></div>
+    <div class="numpad">
+      <div class="np-label">Numpad — click a cell first</div>
+      <div id="numpad-grid"></div>
+    </div>
+  </aside>
+
+  <!-- CENTER GRID -->
+  <div class="grid-area">
+    <div class="status-bar">
+      <div class="sdot ready" id="sdot"></div>
+      <span id="status-msg">Ready — select a cell or generate a puzzle</span>
+    </div>
+    <div class="grid-wrapper">
+      <div id="sudoku-grid"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT INFO -->
+  <aside class="panel">
+    <div class="ptitle">📊 Info</div>
+
+    <div class="info-row">
+      <span class="ir-label">Grid</span>
+      <span class="ir-val acc" id="info-grid">9×9</span>
+    </div>
+    <div class="info-row">
+      <span class="ir-label">Subgrid</span>
+      <span class="ir-val" id="info-sub">3×3</span>
+    </div>
+    <div class="info-row">
+      <span class="ir-label">Symbols</span>
+      <span class="ir-val" id="info-syms">1–9</span>
+    </div>
+    <div class="info-row">
+      <span class="ir-label">Empty</span>
+      <span class="ir-val" id="info-empty">81</span>
+    </div>
+    <div class="info-row">
+      <span class="ir-label">Filled</span>
+      <span class="ir-val ok" id="info-filled">0</span>
+    </div>
+    <div class="info-row">
+      <span class="ir-label">Status</span>
+      <span class="ir-val" id="info-status">Idle</span>
+    </div>
+    <div class="info-row">
+      <span class="ir-label">Solve Time</span>
+      <span class="ir-val acc" id="info-time">—</span>
+    </div>
+
+    <div class="divider"></div>
+    <div class="ptitle">🎨 Legend</div>
+    <div style="display:grid;gap:6px;font-size:.75rem;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="width:18px;height:18px;border-radius:4px;background:var(--cell-given);border:1px solid var(--acc2);flex-shrink:0;"></div>
+        <span style="color:var(--txt2);">Given (clue) cell</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="width:18px;height:18px;border-radius:4px;background:var(--cell-solved);border:1px solid var(--ok);flex-shrink:0;"></div>
+        <span style="color:var(--txt2);">Solved cell</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="width:18px;height:18px;border-radius:4px;background:var(--cell-sel);border:1px solid var(--acc2);flex-shrink:0;"></div>
+        <span style="color:var(--txt2);">Selected cell</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="width:18px;height:18px;border-radius:4px;background:var(--cell-hl);border:1px solid var(--bdr2);flex-shrink:0;"></div>
+        <span style="color:var(--txt2);">Row / col highlight</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="width:18px;height:18px;border-radius:4px;background:var(--cell-conflict);border:1px solid var(--err);flex-shrink:0;"></div>
+        <span style="color:var(--txt2);">Conflict (error)</span>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="ptitle">⌨ Keyboard</div>
+    <div style="font-size:.72rem;color:var(--txt2);line-height:1.9;">
+      <b style="color:var(--txt);">Arrow keys</b> — navigate<br>
+      <b style="color:var(--txt);">1–9 / A–P</b> — enter value<br>
+      <b style="color:var(--txt);">Delete / Backspace</b> — erase<br>
+      <b style="color:var(--txt);">Escape</b> — deselect
+    </div>
+  </aside>
+</main>
+
+<!-- DSA SECTION -->
+<section class="dsa-section">
+  <div class="dsa-h">How Sudoku Solving Works — DSA Under the Hood</div>
+  <div class="dsa-grid">
+    <!-- Matrix Card -->
+    <div class="dsa-card">
+      <div class="dsa-card-img-wrapper">
+        <img class="dsa-card-img" src="assets/dsa_matrix.png" alt="2D Array Matrix representation of Sudoku grid">
+      </div>
+      <h3>🔢 2D Array (Matrix Representation)</h3>
+      <p>The Sudoku board is stored as an <b>N×N 2D Array (Matrix)</b>. Rows, columns, and subgrid boxes are traversed and validated using simple mathematical row/column coordinate offsets.</p>
+      <div class="dsa-points">
+        <div>• <b>O(1) Access</b>: Constant-time access to retrieve or update symbols at any <code>(row, col)</code>.</div>
+        <div>• <b>O(N) Traversal</b>: Checks rows, columns, and subgrids in linear time to confirm value safety.</div>
+      </div>
+      <details class="dsa-code-details">
+        <summary>💻 View isValid() Code</summary>
+        <pre><code>function isValid(board, r, c, val, cfg) {
+  const n = cfg.size, bR = cfg.bR, bC = cfg.bC;
+  for(let i=0; i&lt;n; i++){
+    if(i!==c && board[r][i]===val) return false;
+    if(i!==r && board[i][c]===val) return false;
+  }
+  const sr = Math.floor(r/bR)*bR, sc = Math.floor(c/bC)*bC;
+  for(let i=sr; i&lt;sr+bR; i++)
+    for(let j=sc; j&lt;sc+bC; j++)
+      if((i!==r||j!==c) && board[i][j]===val) return false;
+  return true;
+}</code></pre>
+      </details>
+    </div>
+
+    <!-- Recursion Card -->
+    <div class="dsa-card">
+      <div class="dsa-card-img-wrapper">
+        <img class="dsa-card-img" src="assets/dsa_recursion.png" alt="Recursion nested calls stack">
+      </div>
+      <h3>🔁 Recursion & Call Stack</h3>
+      <p>The solver divides the global grid into smaller, identical cell-level subproblems. Each recursive call attempts to solve the board starting at the next empty slot, building a search path.</p>
+      <div class="dsa-points">
+        <div>• <b>State Stack</b>: The browser call stack stores local cell variables and guesses for each recursive step.</div>
+        <div>• <b>Base Case</b>: Solving succeeds and unwinds when no empty cells remain.</div>
+      </div>
+      <details class="dsa-code-details">
+        <summary>💻 View solve() Base Case Code</summary>
+        <pre><code>function solve(board, cfg) {
+  const cell = findBestEmpty(board, cfg);
+  // Base case: board is fully filled
+  if(!cell) return true; 
+  const [r,c] = cell;
+  // Try candidate values recursively...
+}</code></pre>
+      </details>
+    </div>
+
+    <!-- Backtracking Card -->
+    <div class="dsa-card">
+      <div class="dsa-card-img-wrapper">
+        <img class="dsa-card-img" src="assets/dsa_backtrack.png" alt="Backtracking decision paths">
+      </div>
+      <h3>🔙 Backtracking (Depth-First Search)</h3>
+      <p>Backtracking explores possible numbers. If a path violates constraints, the algorithm "backtracks" (rewinds) by resetting the cell value to 0, pruning the path and trying the next choice.</p>
+      <div class="dsa-points">
+        <div>• <b>Pruning</b>: Eliminates dead-ends early, avoiding brute-force exploration of all $9^{81}$ grid paths.</div>
+        <div>• <b>Rollback</b>: Clears grid values automatically when a recursive call returns failure.</div>
+      </div>
+      <details class="dsa-code-details">
+        <summary>💻 View Backtrack Loop Code</summary>
+        <pre><code>for(const s of syms) {
+  if(isValid(board,r,c,s,cfg)) {
+    board[r][c] = s; // Make choice
+    if(solve(board,cfg)) return true;
+    board[r][c] = 0; // Backtrack (undo choice)
+  }
+}</code></pre>
+      </details>
+    </div>
+
+    <!-- MRV Heuristic Card -->
+    <div class="dsa-card">
+      <div class="dsa-card-img-wrapper">
+        <img class="dsa-card-img" src="assets/dsa_mrv.png" alt="Minimum Remaining Values heuristic optimization scanner">
+      </div>
+      <h3>⚡ MRV Heuristic (Pruning Optimization)</h3>
+      <p>The Minimum Remaining Values (MRV) heuristic identifies the cell with the <b>fewest valid candidate numbers</b> (the most constrained cell) and solves it first.</p>
+      <div class="dsa-points">
+        <div>• <b>Constraint Scaling</b>: Discovers invalid paths immediately, preventing deep, useless backtracking tree layers.</div>
+        <div>• <b>Huge Speedup</b>: Accelerates solver performance by over 1000×, making larger grid solving feasible.</div>
+      </div>
+      <details class="dsa-code-details">
+        <summary>💻 View findBestEmpty() Code</summary>
+        <pre><code>function findBestEmpty(board, cfg) {
+  let best=null, min=cfg.size+1;
+  for(let r=0; r&lt;cfg.size; r++) {
+    for(let c=0; c&lt;cfg.size; c++) {
+      if(board[r][c]===0) {
+        let cnt=0;
+        for(const s of cfg.syms) 
+          if(isValid(board,r,c,s,cfg)) cnt++;
+        if(cnt&lt;min){ min=cnt; best=[r,c]; }
+        if(cnt===0) return best; // Fail early
+      }
+    }
+  }
+  return best;
+}</code></pre>
+      </details>
+    </div>
+
+    <!-- Stack Card -->
+    <div class="dsa-card">
+      <div class="dsa-card-img-wrapper">
+        <img class="dsa-card-img" src="assets/dsa_stack.png" alt="Stack LIFO visual card representation">
+      </div>
+      <h3>📥 Stack (LIFO Undo History)</h3>
+      <p>The application tracks moves using a <b>Stack (LIFO - Last In, First Out)</b>. Every cell entry pushes a state item onto the stack, enabling sequential move rollbacks.</p>
+      <div class="dsa-points">
+        <div>• <b>O(1) Push/Pop</b>: Reversing the board state uses constant-time stack updates.</div>
+        <div>• <b>State Recovery</b>: Easily restores previous cell values on click of the Undo button.</div>
+      </div>
+      <details class="dsa-code-details">
+        <summary>💻 View Stack Undo Code</summary>
+        <pre><code>function handleUndo() {
+  if (S.history.length === 0) return;
+  const move = S.history.pop(); // Pop from stack
+  S.board[move.r][move.c] = move.old;
+  drawBoard();
+  updateStats();
+}</code></pre>
+      </details>
+    </div>
+
+    <!-- Shuffle Card -->
+    <div class="dsa-card">
+      <div class="dsa-card-img-wrapper">
+        <img class="dsa-card-img" src="assets/dsa_shuffle.png" alt="Fisher-Yates Shuffle visualization">
+      </div>
+      <h3>🎲 Fisher-Yates Shuffle</h3>
+      <p>Unbiased random puzzle generation is powered by the <b>Fisher-Yates Shuffle</b>. It randomly permutes coordinates and candidates to generate puzzles.</p>
+      <div class="dsa-points">
+        <div>• <b>O(N) Complexity</b>: Shuffles the array elements in place in linear time.</div>
+        <div>• <b>Uniform Distribution</b>: Ensures all board permutations have equal probability.</div>
+      </div>
+      <details class="dsa-code-details">
+        <summary>💻 View Shuffle Algorithm Code</summary>
+        <pre><code>function shuffle(a) {
+  for (let i = a.length - 1; i &gt; 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]]; // Swap elements
+  }
+}</code></pre>
+      </details>
+    </div>
+
+    <!-- Graph Coloring Card -->
+    <div class="dsa-card">
+      <div class="dsa-card-img-wrapper">
+        <img class="dsa-card-img" src="assets/dsa_graph.png" alt="Graph Vertex Coloring network representation">
+      </div>
+      <h3>🕸 Graph Vertex Coloring</h3>
+      <p>Sudoku can be modeled as the <b>Graph Vertex Coloring Problem</b>. Cells represent vertices, and edges represent constraint relationships in rows, columns, or subgrid cliques.</p>
+      <div class="dsa-points">
+        <div>• <b>Constraint Clique</b>: A vertex coloring problem where neighboring vertices cannot share the same color.</div>
+        <div>• <b>NP-Complete Logic</b>: Links game solving to foundational computational complexity theory.</div>
+      </div>
+      <details class="dsa-code-details">
+        <summary>💻 View Vertex Constraint Code</summary>
+        <pre><code>// Verifies if vertex color val clashes 
+// with adjacent graph neighbor nodes:
+for(let i=0; i&lt;cfg.size; i++) {
+  if(i!==c && board[r][i]===val) return false;
+  if(i!==r && board[i][c]===val) return false;
+}</code></pre>
+      </details>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <strong>Built using DSA Concepts: Backtracking · Recursion · 2D Arrays</strong><br>
+  <span style="color:var(--txt3);">Ultimate Sudoku Solver — Supports 4×4 to 25×25 grids</span>
+</footer>
+
+<div id="success-overlay">
+  <div class="success-card">
+    <div class="emoji">🎉</div>
+    <h2>Puzzle Solved!</h2>
+    <p>The backtracking algorithm found the solution.</p>
+    <div class="time-badge" id="solve-time-badge">0.00s</div><br>
+    <button class="btn primary" onclick="closeSuccess()" style="min-width:140px;">Continue ✓</button>
+  </div>
+</div>
+<canvas id="confetti-canvas"></canvas>
+
+<script src="background.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
